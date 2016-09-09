@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<title>Web Page Design</title>
+ <!-- CREATEJS -->
+    <script type="text/javascript" src="http://code.createjs.com/createjs-2013.12.12.min.js"></script>
+ 
+ 
+<script src="script.js"></script>
+
+<!-- BEHAVIORJS TEST CODE -->
+<script type = "text/javascript">
+
+    var tree;
+    var blackboard;
+    
+    function start(){
+        
+        //CREATES
+        blackboard = new Blackboard();
+        tree = new BehaviorTree();
+        document.write('start\n');
+        tree.root = new Priority(
+            new Sequence(
+                new IsAction(true),
+                new Action1('stop'),
+                new Wait(500),
+                new Action1('run'),
+                )
+            new Action1('talk'),
+            );
+        
+        createjs.Ticker.addEventListener('tick', onTick);
+    }
+    
+    function onClick(){
+        tree.tick(blackboard);
+    }
+</script>
+</head>
+<body onload = "start();">
+</body>
+</html>
