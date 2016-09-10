@@ -6,7 +6,7 @@ var ERROR   = 4;
 
 //GLOBAL & UTILITY FUNCTIONS ===================================================
 var createUUID = function(){
-    var s=[];
+    var s = [];
     var hexDigits = '0123456789abcdef';
     for(var i=0;i< 36;i++){
         s[i]=hexDigits.substr(Math.floor(Math.random()* 0x10), 1);
@@ -23,11 +23,11 @@ var createUUID = function(){
     var uuid = s.join("");
     
     return uuid;
-}
+};
 
 var Blackboard = function(){
     this.initialize();
-}
+};
 
 Blackboard.prototype.initialize = function(){
     this._baseMemory = {}; //used to store global information
@@ -35,7 +35,7 @@ Blackboard.prototype.initialize = function(){
 };
 
 Blackboard.prototype._getTreeMemory = function(treeScope){
-    if(this._treeMemory[treeScope]){
+    if(!this._treeMemory[treeScope]){
         this._treeMemory[treeScope] = {
             'nodeMemory' : {},
             'openNodes'  : [],
@@ -55,27 +55,30 @@ Blackboard.prototype._getNodeMemory = function(treeMemory, nodeScope){
 };
 
 Blackboard.prototype._getMemory = function(treeScope, nodeScope){
-    
     var memory = this._baseMemory;
     
     if(treeScope){
+      
         memory = this._getTreeMemory(treeScope);
         
         if(nodeScope){
-            memory = this._geNodeMemory(memory, nodeScope);
+          
+            memory = this._getNodeMemory(memory, nodeScope);
+           
         }
     }
-}
+    return memory;
+};
 
 Blackboard.prototype.set = function(key, value, treeScope, nodeScope){
     var memory = this._getMemory(treeScope, nodeScope);
     memory[key]=value;
-}
+};
 
 Blackboard.prototype.get = function(key,treeScope, nodeScope){
     var memory = this._getMemory(treeScope, nodeScope);
     return memory[key];
-}
+};
 
 var Tick = function(){
     this.initialize();
@@ -93,27 +96,32 @@ Tick.prototype.initialize = function(){
 Tick.prototype.enterNode = function(node){
     this.nodeCount++;
     this.openNodes.push(node);
+  //document.write("enter node "+ node.id+" <br/>");
     
 }
 
 Tick.prototype.openNode = function(node){
     //call debug here
+  //document.write("open node "+ node.id+" <br/>");
 }
 
 Tick.prototype.tickNode = function(node){
     //call debug here
+ // document.write("tick node "+ node.id+" <br/>");
 }
 
 Tick.prototype.closeNode = function(node){
     //call debug here
     this.openNodes.pop();
+  //document.write("close node "+ node.id+" <br/>");
 }
 
-Tick.prototype.exitNode = function(){
+Tick.prototype.exitNode = function(node){
     //call debug here
+ //document.write("exit node "+ node.id+" <br/>");
 }
 
-var BehvaiorTree = function(){
+var BehaviorTree = function(){
     this.initialize();
 }
 
@@ -130,11 +138,11 @@ BehaviorTree.prototype.tick = function(target, blackboard){
     tick.tree = this;
     
     //tick node
-    this.root._execute(tick);
-    
+    var status = this.root._execute(tick);
+     
     //close nodes from last tick, if needed
-    var lastOpenNodes = behaviorboard.get('openNodes', this.id);
-    var curOpenNodes = tick.openNodes.slice(0);
+    var lastOpenNodes = blackboard.get('openNodes', this.id);
+    var curOpenNodes  = tick.openNodes.slice(0);
     
     //does not close if it is still open in this tick
     var start=0;
@@ -157,9 +165,9 @@ BehaviorTree.prototype.tick = function(target, blackboard){
 
 var BaseNode = function(){
     this.initialize();
-}
+};
 
-BaseNode.prototype.initialize = fucntion(children){
+BaseNode.prototype.initialize = function(children){
     this.id = createUUID();
     
     this.children = [];
@@ -172,16 +180,18 @@ BaseNode.prototype.initialize = fucntion(children){
 };
 
 BaseNode.prototype._execute = function(tick){
-    //enter
+  
+  //enter
     this._enter(tick);
-    
+     
     //open
-    if(tick.blackboard.get('isOpen', tick.tree.id, this.id)){
+    if(!tick.blackboard.get('isOpen', tick.tree.id, this.id)){
+      
         this._open(tick);
     }
-    
+       
     //tick
-    var status = this_tick(tick);
+    var status = this._tick(tick);
     
     //close
     if(status !== RUNNING){
@@ -202,19 +212,20 @@ BaseNode.prototype._enter = function(tick){
 }
 
 BaseNode.prototype._open = function(tick){
-    tick.oepnNode(this);
+    tick.openNode(this);
     tick.blackboard.set('isOpen',true, tick.tree.id, this.id);
     this.open(tick);
 }
 
 BaseNode.prototype._tick = function(tick){
+  
     tick.tickNode(this);
     return this.tick(tick);
 }
 
 BaseNode.prototype._close = function(tick){
     tick.closeNode(this);
-    tick.blackboard.set('isOpen', false, tick.tree.id, this);
+    tick.blackboard.set('isOpen', false, tick.tree.id, this.id);
     this.close(tick);
 }
 
@@ -227,7 +238,186 @@ BaseNode.prototype._exit = function(tick){
 BaseNode.prototype.enter = function(tick){};
 BaseNode.prototype.open  = function(tick){};
 BaseNode.prototype.tick  = function(tick){};
+BaseNode.prototype.close  = function(tick){};
+BaseNode.prototype.exit  = function(tick){};
+//Composites
 
+//Sequence
+var Sequence = function() {
+    this.initialize(arguments);
+}
+
+Sequence.prototype = new BaseNode();
+Sequence.prototype.tick = function(tick) {
+    for (var i=0; i<this.children.length; i++) {
+        var status = this.children[i]._execute(tick);
+ 
+        if (status !== SUCCESS) {
+            return status;
+        }
+    }
+ 
+    return SUCCESS;
+}
+
+var Priority = function() {
+    this.initialize(arguments);
+}
+Priority.prototype = new BaseNode();
+Priority.prototype.tick = function(tick) {
+    for (var i=0; i<this.children.length; i++) {
+        var status = this.children[i]._execute(tick);
+ 
+        if (status !== FAILURE) {
+            return status;
+        }
+    }
+ 
+    return FAILURE;
+}
+
+var MemSequence = function() {
+    this.initialize(arguments);
+}
+MemSequence.prototype = new BaseNode();
+MemSequence.prototype.open = function(tick) {
+    tick.blackboard.set('runningChild', 0, tick.tree.id, this.id);
+}
+ 
+MemSequence.prototype.tick = function(tick) {
+    var child = tick.blackboard.get('runningChild', tick.tree.id, this.id);
+    for (var i=child; i<this.children.length; i++) {
+        var status = this.children[i]._execute(tick);
+ 
+        if (status !== SUCCESS) {
+            if (status === RUNNING) {
+                tick.blackboard.set('runningChild', i, tick.tree.id, this.id);
+            }
+            return status;
+        }
+    }
+ 
+    return SUCCESS;
+}
+
+var MemPriority = function() {
+    this.initialize(arguments);
+}
+MemPriority.prototype = new BaseNode();
+MemPriority.prototype.open = function(tick) {
+    tick.blackboard.set('runningChild', 0, tick.tree.id, this.id);
+}
+ 
+MemPriority.prototype.tick = function(tick) {
+    var child = tick.blackboard.get('runningChild', tick.tree.id, this.id);
+    for (var i=child; i<this.children.length; i++) {
+        var status = this.children[i]._execute(tick);
+ 
+        if (status !== FAILURE) {
+            if (status === RUNNING) {
+                tick.blackboard.set('runningChild', i, tick.tree.id, this.id);
+            }
+            return status;
+        }
+    }
+ 
+    return FAILURE;
+};
+
+//Decorator
+var Inverter = function() {
+    this.initialize(arguments);
+};
+Inverter.prototype = new BaseNode();
+Inverter.prototype.tick = function(tick) {
+    var child = this.children[0];
+ 
+    if (!child) {
+        return ERROR;
+    }
+ 
+    var status = child._execute(tick);
+ 
+    if (status == SUCCESS)
+        status = FAILURE;
+    else if (status == FAILURE)
+        status = SUCCESS;
+ 
+    return status;
+};
+
+//ACTION
+//Wait
+var Wait = function(milliseconds) {
+    this.endTime = milliseconds;
+    this.initialize();
+};
+Wait.prototype = new BaseNode();
+Wait.prototype.open = function(tick) {
+    var startTime = (new Date()).getTime();
+    tick.blackboard.set('startTime', startTime, tick.tree.id, this.id);
+};
+ 
+Wait.prototype.tick = function(tick) {
+    var currTime = (new Date()).getTime();
+    var startTime = tick.blackboard.get('startTime', tick.tree.id, this.id);
+    
+    if (currTime - startTime > this.endTime) {
+        return SUCCESS;
+    }
+  
+  if((currTime - startTime)%100 ===0){
+    document.write("Wait "+ (currTime - startTime)/100 + "s<br/>");
+  }
+    return RUNNING;
+};
+
+//LOOP
+var Loop = function(times){
+  this.times = times;
+  this.initialize();
+}
+
+Loop.prototype = new BaseNode();
+Loop.prototype.tick = function(tick){
+  if(this.times<=0){
+    return SUCCESS;
+  }
+  
+  this.times--;
+  document.write("Loop one time，remain "+this.times+" times<br/>");               
+  return RUNNING;
+}
+
+//Action
+var Action1 = function(name){
+  this.initialize();
+  this.name = name;
+};
+
+Action1.prototype = new BaseNode();
+Action1.prototype.tick = function(tick){
+  document.write("Action "+this.name+" Done!<br/>");
+  return SUCCESS;
+};
+
+//Condition
+var IsAction = function(condition){
+  this.initialize();
+  this.condition = condition;
+}
+
+IsAction.prototype = new BaseNode();
+IsAction.prototype.tick = function(tick){
+  if(this.condition){
+    document.write("Action Condition meet!<br>");
+    return SUCCESS;
+  }else
+    {
+      document.write("Action Condition can't meet<br\>");
+      return FAILURE;
+    }
+}
 
 
 
