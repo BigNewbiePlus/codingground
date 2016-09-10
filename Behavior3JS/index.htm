@@ -12,31 +12,38 @@
     var tree;
     var blackboard;
     
-    /*function start(){
-        //document.write("start<br/>");
+    function start(){
+        
         
         //CREATES
-        /*blackboard = new Blackboard();
+        blackboard = new Blackboard();
+      
         tree = new BehaviorTree();
-        document.write('start\n');
-        tree.root = new Priority(
-            new Sequence(
+      
+       
+       tree.root = 
+         new MemSequence(
+            new Action1('walk'),
+            new MemSequence(
                 new IsAction(true),
                 new Action1('stop'),
-                new Wait(500),
+                new Loop(2),
                 new Action1('run'),
-                )
-            new Action1('talk'),
+              new IsAction(true)
+                ),
+            new Action1('talk')
             );
-        
-        createjs.Ticker.addEventListener('tick', onTick);
+      
+      tree.tick(null, blackboard);
+      
+      tree.tick(null, blackboard);
+      tree.tick(null, blackboard);
+      
+      
     }
     
-    function onClick(){
-        tree.tick(blackboard);
-    }*/
 </script>
 </head>
-<body >fang
+<body onload = "start();">fang
 </body>
 </html>
